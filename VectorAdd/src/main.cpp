@@ -27,7 +27,7 @@ int main()
 
     cl_kernel kernel = clCreateKernel(program, "vector_add", nullptr);
 
-    constexpr int ArraySize = 1024;
+    constexpr int ArraySize = 1024 * 20;
 
     float A[ArraySize];
     float B[ArraySize];
@@ -58,7 +58,7 @@ int main()
     }
 
     size_t globalWorkSize[1] = {ArraySize};
-    size_t localWorkSize[1] = {1};
+    size_t localWorkSize[1] = {256};
 
     errNum = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr, globalWorkSize, localWorkSize, 0, nullptr, nullptr);
 
