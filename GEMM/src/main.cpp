@@ -6,7 +6,7 @@
 #include <opencl.hpp>
 #include <opencl_step.hpp>
 /*define the type*/
-using Type = cl_double;
+using Type = cl_float;
 
 int main() {
     std::vector<cl_device_id> device;
@@ -15,6 +15,8 @@ int main() {
     std::cout << "Device" << GetDeviceName(device[0]) << std::endl;
     std::cout << "Enable double:" << GetDiviceEnableDouble(device[0])
               << std::endl;
+    std::cout << "Shared Memory: " << GetDeviceLocalMemSize(device[0])
+              << std::endl;
 
     auto context = CreateContext(platform, device, 1);
     auto CommandQueue = CreateCommandQueue(context, device[0]);
@@ -22,7 +24,7 @@ int main() {
         ReadKernelSource("./opencl/gemm.cl", std::type_index(typeid(Type)));
     auto Program = CreateProgram(context, device[0], KernelSource);
     BuildProgram(Program, 1, device);
-    auto Kernel = CreateKernel(Program, "ClGemm");
+    auto Kernel = CreateKernel(Program, "ClGemm_block");
 
     constexpr int width = 1024;
     constexpr int height = 1024;
@@ -35,8 +37,8 @@ int main() {
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            A[y * width + x] = y;
-            B[y * width + x] = x;
+            A[y * width + x] = x + y;
+            B[y * width + x] = x - y;
             C[y * width + x] = 0;
             C_ref[y * width + x] = 0;
         }
@@ -98,11 +100,12 @@ int main() {
     std::cout << "Speed Up is:" << (double)elapsed2 / elapsed1 << std::endl;
 
     /*check*/
-    for (int i = 0; i < size; i++) {
-        if (std::abs(C[i] - C_ref[i]) > 1.0e-3) {
-            std::cerr << "Error: " << i << " " << C[i] << " " << C_ref[i]
-                      << std::endl;
-            return 1;
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (std::abs(C[i * width + j] - C_ref[i * width + j]) > 1e-3) {
+                std::cerr << "Error in " << i << " " << j << std::endl;
+                return 1;
+            }
         }
     }
 

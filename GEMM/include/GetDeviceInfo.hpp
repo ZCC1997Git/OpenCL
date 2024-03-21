@@ -9,6 +9,7 @@ cl_uint GetDeviceMaxComputeUnits(cl_device_id id);
 cl_uint GetDeviceMaxClockFrequency(cl_device_id id);
 
 cl_ulong GetDeviceGlobalMemSize(cl_device_id id);
+cl_ulong GetDeviceLocalMemSize(cl_device_id id);
 
 std::string GetDeviceVendor(cl_device_id id);
 
