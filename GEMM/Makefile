@@ -1,12 +1,12 @@
 compiler =g++
 SrcDir   =./src 
 ObjDir   =./obj
-
+Target   =gemm
 source   =$(foreach dir,$(SrcDir),$(wildcard $(dir)/*.cpp))
 object   =$(patsubst %.cpp,$(ObjDir)/%.o,$(notdir $(source)))
 
 
-VecAdd:$(object)
+$(Target):$(object)
 	$(compiler) $^ -o $@ -lOpenCL
 
 $(ObjDir)/%.o:./src/%.cpp 
@@ -14,8 +14,8 @@ $(ObjDir)/%.o:./src/%.cpp
 
 .PHONY:clean
 clean:
-	rm $(ObjDir)/*.o VecAdd
+	rm $(ObjDir)/*.o $(Target)
 
 .PHONY:run 
-run:VecAdd
-	./VecAdd
+run:$(Target)
+	./$(Target)

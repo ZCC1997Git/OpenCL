@@ -5,6 +5,8 @@
 #include <iostream>
 #include <opencl.hpp>
 #include <opencl_step.hpp>
+/*define the type*/
+using Type = cl_double;
 
 int main() {
     std::vector<cl_device_id> device;
@@ -14,7 +16,8 @@ int main() {
 
     auto context = CreateContext(platform, device, 1);
     auto CommandQueue = CreateCommandQueue(context, device[0]);
-    auto KernelSource = ReadKernelSource("./opencl/gemm.cl");
+    auto KernelSource =
+        ReadKernelSource("./opencl/gemm.cl", std::type_index(typeid(Type)));
     auto Program = CreateProgram(context, device[0], KernelSource);
     BuildProgram(Program, 1, device);
     auto Kernel = CreateKernel(Program, "ClGemm");
@@ -23,10 +26,10 @@ int main() {
     constexpr int height = 1024;
     constexpr int size = width * height;
 
-    cl_float* A = new cl_float[size];
-    cl_float* B = new cl_float[size];
-    cl_float* C = new cl_float[size];
-    cl_float* C_ref = new cl_float[size];
+    Type* A = new Type[size];
+    Type* B = new Type[size];
+    Type* C = new Type[size];
+    Type* C_ref = new Type[size];
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
@@ -40,12 +43,12 @@ int main() {
     /*create buffer*/
     cl_mem bufferA =
         clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                       sizeof(cl_float) * size, A, nullptr);
+                       sizeof(Type) * size, A, nullptr);
     cl_mem bufferB =
         clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                       sizeof(cl_float) * size, B, nullptr);
+                       sizeof(Type) * size, B, nullptr);
     cl_mem bufferC = clCreateBuffer(context, CL_MEM_WRITE_ONLY,
-                                    sizeof(cl_float) * size, nullptr, nullptr);
+                                    sizeof(Type) * size, nullptr, nullptr);
 
     /*set kernel arguments*/
     SetKernelArg(Kernel, bufferA, bufferB, bufferC, height, width);
@@ -68,7 +71,7 @@ int main() {
 
     /*read buffer*/
     if (clEnqueueReadBuffer(CommandQueue, bufferC, CL_TRUE, 0,
-                            sizeof(cl_float) * size, C, 0, nullptr,
+                            sizeof(Type) * size, C, 0, nullptr,
                             nullptr) != CL_SUCCESS) {
         std::cerr << "Error in clEnqueueReadBuffer" << std::endl;
         return 1;
@@ -78,7 +81,7 @@ int main() {
     auto start2 = std::chrono::system_clock::now();
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            float sum = 0;
+            Type sum = 0;
             for (int k = 0; k < width; k++) {
                 sum += A[y * width + k] * B[k * width + x];
             }
@@ -94,7 +97,7 @@ int main() {
 
     /*check*/
     for (int i = 0; i < size; i++) {
-        if (std::abs(C[i] - C_ref[i]) > 1.0e-3f) {
+        if (std::abs(C[i] - C_ref[i]) > 1.0e-3) {
             std::cerr << "Error: " << i << " " << C[i] << " " << C_ref[i]
                       << std::endl;
             return 1;

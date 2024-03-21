@@ -2,9 +2,10 @@
 #include <opencl.hpp>
 #include <string>
 #include <tuple>
+#include <typeindex>
 #include <vector>
 
-std::string ReadKernelSource(std::string filename);
+std::string ReadKernelSource(std::string filename, std::type_index type);
 
 cl_platform_id GetPlatform(std::vector<cl_device_id>& device,
                            cl_uint PlatformId = 1,
