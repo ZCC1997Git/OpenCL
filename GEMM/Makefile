@@ -4,10 +4,10 @@ ObjDir   =./obj
 Target   =gemm
 source   =$(foreach dir,$(SrcDir),$(wildcard $(dir)/*.cpp))
 object   =$(patsubst %.cpp,$(ObjDir)/%.o,$(notdir $(source)))
-
+cflags   +=-std=c++17 -fopenmp -O3
 
 $(Target):$(object)
-	$(compiler) $^ -o $@ -lOpenCL
+	$(compiler) $^ -o $@ -lOpenCL -fopenmp 
 
 $(ObjDir)/%.o:./src/%.cpp 
 	$(compiler) -c $(cflags) $< -o $@ -I./include
