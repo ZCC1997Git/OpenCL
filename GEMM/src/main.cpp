@@ -25,7 +25,7 @@ int main() {
         ReadKernelSource("./opencl/gemm.cl", std::type_index(typeid(Type)));
     auto Program = CreateProgram(context, device[0], KernelSource);
     BuildProgram(Program, 1, device, "-cl-std=CL2.0");
-    auto Kernel = CreateKernel(Program, "ClGemm_block");
+    auto Kernel = CreateKernel(Program, "ClGemm_block_newversion");
 
     constexpr int width = 1024 * 8;
     constexpr int height = 1024 * 8;
@@ -58,8 +58,8 @@ int main() {
     /*set kernel arguments*/
     SetKernelArg(Kernel, bufferA, bufferB, bufferC, height, width);
 
-    size_t global[2] = {height, width};
-    size_t local[2] = {32, 32};
+    size_t global[2] = {height / 4, width / 4};
+    size_t local[2] = {32 / 4, 32 / 4};
 
     cl_event event;
     if (clEnqueueNDRangeKernel(CommandQueue, Kernel, 2, nullptr, global, local,
