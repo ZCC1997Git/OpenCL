@@ -13,6 +13,8 @@ int main() {
     cl_platform_id platform = GetPlatform(device);
     std::cout << "Platform: " << GetPlatformName(platform) << std::endl;
     std::cout << "Device" << GetDeviceName(device[0]) << std::endl;
+    std::cout << "Enable double:" << GetDiviceEnableDouble(device[0])
+              << std::endl;
 
     auto context = CreateContext(platform, device, 1);
     auto CommandQueue = CreateCommandQueue(context, device[0]);
