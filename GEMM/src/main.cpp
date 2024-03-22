@@ -60,6 +60,8 @@ int main() {
 
     size_t global[2] = {height / 4, width / 4};
     size_t local[2] = {32 / 4, 32 / 4};
+    // size_t global[2] = {height, width};
+    // size_t local[2] = {32, 32};
 
     cl_event event;
     if (clEnqueueNDRangeKernel(CommandQueue, Kernel, 2, nullptr, global, local,

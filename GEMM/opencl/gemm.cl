@@ -51,7 +51,6 @@ __kernel void ClGemm_block(__global T* A,
 }
 
 #define register_block_size 4
-
 __kernel void ClGemm_block_newversion(__global float* A,
                                       __global float* B,
                                       __global float* C,
@@ -71,13 +70,16 @@ __kernel void ClGemm_block_newversion(__global float* A,
     /*rgeister block */
     __private float4 register_A[register_block_size];
     __private float4 register_B[register_block_size];
-    __private float reister_C[4][4] = {0};
+    __private float4 register_C[4] = {
+        {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
 
     int num_iter = width / tile_size;
 
     __private float sum0 = 0.0, sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
     float4* A_ptr = (__global float4*)A;
     float4* B_ptr = (__global float4*)B;
+    float4* C_ptr = (__global float4*)C;
+
     int new_width = width / 4;
     int strid_x = tile_size / get_local_size(1);
 
@@ -87,8 +89,6 @@ __kernel void ClGemm_block_newversion(__global float* A,
             local_A[strid_x * local_x + j][local_y] =
                 A_ptr[strid_x * global_x * new_width + j * new_width +
                       i * vector_tile_size + local_y];
-        }
-        for (int j = 0; j < strid_x; j++) {
             local_B[strid_x * local_x + j][local_y] =
                 B_ptr[tile_size * i * new_width +
                       (strid_x * local_x + j) * new_width + global_y];
@@ -104,19 +104,19 @@ __kernel void ClGemm_block_newversion(__global float* A,
 
             /*calculate the matrix mul martix*/
             for (int k = 0; k < register_block_size; k++) {
-                reister_C[k][0] += register_A[k].x * register_B[0].x +
+                register_C[k].x += register_A[k].x * register_B[0].x +
                                    register_A[k].y * register_B[1].x +
                                    register_A[k].z * register_B[2].x +
                                    register_A[k].w * register_B[3].x;
-                reister_C[k][1] += register_A[k].x * register_B[0].y +
+                register_C[k].y += register_A[k].x * register_B[0].y +
                                    register_A[k].y * register_B[1].y +
                                    register_A[k].z * register_B[2].y +
                                    register_A[k].w * register_B[3].y;
-                reister_C[k][2] += register_A[k].x * register_B[0].z +
+                register_C[k].z += register_A[k].x * register_B[0].z +
                                    register_A[k].y * register_B[1].z +
                                    register_A[k].z * register_B[2].z +
                                    register_A[k].w * register_B[3].z;
-                reister_C[k][3] += register_A[k].x * register_B[0].w +
+                register_C[k].w += register_A[k].x * register_B[0].w +
                                    register_A[k].y * register_B[1].w +
                                    register_A[k].z * register_B[2].w +
                                    register_A[k].w * register_B[3].w;
@@ -125,10 +125,9 @@ __kernel void ClGemm_block_newversion(__global float* A,
 
         barrier(CLK_LOCAL_MEM_FENCE);
     }
+
     /*write to global memory*/
     for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            C[(global_x * 4 + i) * width + global_y * 4 + j] = reister_C[i][j];
-        }
+        C_ptr[(global_x * 4 + i) * new_width + global_y] = register_C[i];
     }
 }
