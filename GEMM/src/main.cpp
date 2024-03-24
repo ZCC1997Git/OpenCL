@@ -25,7 +25,7 @@ int main() {
         ReadKernelSource("./opencl/gemm.cl", std::type_index(typeid(Type)));
     auto Program = CreateProgram(context, device[0], KernelSource);
     BuildProgram(Program, 1, device, "-cl-std=CL2.0");
-    auto Kernel = CreateKernel(Program, "ClGemm_block_newversion");
+    auto Kernel = CreateKernel(Program, "ClGemm_block_newversion2");
 
     constexpr int width = 1024 * 8;
     constexpr int height = 1024 * 8;
@@ -38,8 +38,8 @@ int main() {
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            A[y * width + x] = y % 4;
-            B[y * width + x] = x % 4;
+            A[y * width + x] = 1;
+            B[y * width + x] = 1;
             C[y * width + x] = 0;
             C_ref[y * width + x] = 0;
         }
@@ -79,6 +79,14 @@ int main() {
     auto elapsed1 = (end - start) / 1e6;
 
     std::cout << "GPU Elapsed time: " << elapsed1 << "ms" << std::endl;
+    std::cout << "Bandwith:"
+              << 3 * sizeof(Type) * height * width * 1000 / elapsed1 / 1024 /
+                     1024 / 1024
+              << "GB/s" << std::endl;
+    std::cout << "Floats per second:"
+              << 2.0 * height * width * height / elapsed1 * 1e3 / 1024 / 1024 /
+                     1024
+              << "GFLOPS" << std::endl;
 
     /*read buffer*/
     if (clEnqueueReadBuffer(CommandQueue, bufferC, CL_TRUE, 0,

@@ -131,3 +131,98 @@ __kernel void ClGemm_block_newversion(__global float* A,
         C_ptr[(global_x * 4 + i) * new_width + global_y] = register_C[i];
     }
 }
+
+__kernel void ClGemm_block_newversion2(__global float* A,
+                                       __global float* B,
+                                       __global float* C,
+                                       uint height,
+                                       uint width) {
+    int global_y = get_global_id(0);
+    int global_x = get_global_id(1);
+
+    int local_y = get_local_id(0);
+    int local_x = get_local_id(1);
+    int id_in_block = local_x * 8 + local_y;
+
+    /* local memory block*/
+    const int vector_tile_size = tile_size / 4;
+    __local float local_A[16][64];
+    __local float local_B[16][64];
+
+    /*rgeister block */
+    __private float4 A_load;
+    __private float4 B_load;
+    __private float4 register_A[register_block_size];
+    __private float4 register_B[register_block_size];
+    __private float4 register_C[4] = {
+        {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+
+    int num_iter = width / tile_size;
+
+    float4* A_ptr = (__global float4*)A;
+    float4* B_ptr = (__global float4*)B;
+    float4* C_ptr = (__global float4*)C;
+
+    int new_width = width / 4;
+    int strid_x = tile_size / 8;
+
+    for (int i = 0; i < num_iter; i++) {
+        /*load to local*/
+        for (int j = 0; j < strid_x; j++) {
+            A_load = A_ptr[strid_x * global_x * new_width + j * new_width +
+                           i * vector_tile_size + local_y];
+            B_load = B_ptr[tile_size * i * new_width +
+                           (strid_x * local_x + j) * new_width + global_y];
+            local_A[4 * j + 0][id_in_block] = A_load.x;
+            local_A[4 * j + 1][id_in_block] = A_load.y;
+            local_A[4 * j + 2][id_in_block] = A_load.z;
+            local_A[4 * j + 3][id_in_block] = A_load.w;
+            local_B[4 * j + 0][id_in_block] = B_load.x;
+            local_B[4 * j + 1][id_in_block] = B_load.y;
+            local_B[4 * j + 2][id_in_block] = B_load.z;
+            local_B[4 * j + 3][id_in_block] = B_load.w;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        for (int j = 0; j < tile_size / 4; j++) {
+            /*load to register*/
+            for (int k = 0; k < register_block_size; k++) {
+                register_A[k].x = local_A[4 * k + 0][8 * local_x + j];
+                register_A[k].y = local_A[4 * k + 1][8 * local_x + j];
+                register_A[k].z = local_A[4 * k + 2][8 * local_x + j];
+                register_A[k].w = local_A[4 * k + 3][8 * local_x + j];
+                register_B[k].x = local_B[4 * k + 0][8 * j + local_y];
+                register_B[k].y = local_B[4 * k + 1][8 * j + local_y];
+                register_B[k].z = local_B[4 * k + 2][8 * j + local_y];
+                register_B[k].w = local_B[4 * k + 3][8 * j + local_y];
+            }
+
+            /*calculate the matrix mul martix*/
+            for (int k = 0; k < register_block_size; k++) {
+                register_C[k].x += register_A[k].x * register_B[0].x +
+                                   register_A[k].y * register_B[1].x +
+                                   register_A[k].z * register_B[2].x +
+                                   register_A[k].w * register_B[3].x;
+                register_C[k].y += register_A[k].x * register_B[0].y +
+                                   register_A[k].y * register_B[1].y +
+                                   register_A[k].z * register_B[2].y +
+                                   register_A[k].w * register_B[3].y;
+                register_C[k].z += register_A[k].x * register_B[0].z +
+                                   register_A[k].y * register_B[1].z +
+                                   register_A[k].z * register_B[2].z +
+                                   register_A[k].w * register_B[3].z;
+                register_C[k].w += register_A[k].x * register_B[0].w +
+                                   register_A[k].y * register_B[1].w +
+                                   register_A[k].z * register_B[2].w +
+                                   register_A[k].w * register_B[3].w;
+            }
+        }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    /*write to global memory*/
+    for (int i = 0; i < 4; i++) {
+        C_ptr[(global_x * 4 + i) * new_width + global_y] = register_C[i];
+    }
+}
