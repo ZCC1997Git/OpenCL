@@ -5,7 +5,7 @@
 #include <typeindex>
 #include <vector>
 
-std::string ReadKernelSource(std::string filename, std::type_index type);
+std::string ReadKernelSource(std::string filename);
 
 cl_platform_id GetPlatform(std::vector<cl_device_id>& device,
                            cl_uint PlatformId = 1,
@@ -72,3 +72,6 @@ template <class... Args>
 void ReleaseCPUBuf(Args&&... args) {
     (delete[] args, ...);
 }
+
+cl_mem LoadImage(cl_context context, std::string filename,int& width, int& height);
+void SaveImage(std::string filename, char* buffer, int width, int height);
