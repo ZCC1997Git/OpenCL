@@ -1,8 +1,8 @@
 compiler 	=g++
 SrcDir   	=./src 
 ObjDir   	=./obj
-Target   	=ImageRotate
-Target_cpu   =ImageRotate_cpu
+Target   	=./bin/ImageRotate
+Target_cpu  =./bin/ImageRotate_cpu
 source   	=$(foreach dir,$(SrcDir),$(wildcard $(dir)/*.cpp))
 source_cpu  =$(wildcard ./CPU_src/*.cpp)
 object   	=$(patsubst %.cpp,$(ObjDir)/%.o,$(notdir $(source)))
@@ -14,10 +14,12 @@ OK_COLOR    =\033[32;01m
 all:$(Target) $(Target_cpu)
 
 $(Target):$(object)
+	@mkdir -p ./bin
 	$(compiler) $^ -o $@ -lOpenCL  -L./FreeImage/usr/lib -lfreeimage
 	@printf "$(OK_COLOR) OpenCL executable file $(Target) has been created\n$(NO_COLOR)" 
 
 $(Target_cpu):$(object_cpu)
+	@mkdir -p ./bin
 	$(compiler) $^ -o $@  -L./FreeImage/usr/lib -lfreeimage
 	@printf "$(OK_COLOR) CPU executable file $(Target_cpu) has been created\n$(NO_COLOR)" 
 
