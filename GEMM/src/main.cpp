@@ -14,7 +14,7 @@ using Type = cl_float;
 
 int main() {
     std::vector<cl_device_id> device;
-    cl_platform_id platform = GetPlatform(device, 1, CL_DEVICE_TYPE_CPU);
+    cl_platform_id platform = GetPlatform(device, 1, CL_DEVICE_TYPE_GPU);
     std::cout << "Platform: " << GetPlatformName(platform) << std::endl;
     std::cout << "Device" << GetDeviceName(device[0]) << std::endl;
     std::cout << "Enable double:" << GetDiviceEnableDouble(device[0])

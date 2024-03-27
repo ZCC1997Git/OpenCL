@@ -27,7 +27,9 @@ cl_platform_id GetPlatform(std::vector<cl_device_id>& device,
     errNum = clGetDeviceIDs(Platform, deviceType, 0, 0, &numDevices);
     if (errNum != CL_SUCCESS || numDevices <= 0) {
         std::cerr << "Failed to find any devices" << std::endl;
-        return nullptr;
+        std::cout << "Tring to find CPU as device" << std::endl;
+        deviceType = CL_DEVICE_TYPE_CPU;
+        clGetDeviceIDs(Platform, deviceType, 0, 0, &numDevices);
     }
     device.resize(numDevices);
     errNum = clGetDeviceIDs(Platform, deviceType, numDevices, device.data(),

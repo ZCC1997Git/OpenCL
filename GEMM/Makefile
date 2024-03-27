@@ -9,7 +9,8 @@ cflags   +=-std=c++17 -fopenmp -O3
 $(Target):$(object)
 	$(compiler) $^ -o $@ -lOpenCL -fopenmp 
 
-$(ObjDir)/%.o:./src/%.cpp 
+$(ObjDir)/%.o:./src/%.cpp
+	@mkdir -p $(ObjDir)
 	$(compiler) -c $(cflags) $< -o $@ -I./include
 
 .PHONY:clean
