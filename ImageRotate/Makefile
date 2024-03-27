@@ -15,12 +15,12 @@ all:$(Target) $(Target_cpu)
 
 $(Target):$(object)
 	@mkdir -p ./bin
-	$(compiler) $^ -o $@ -lOpenCL  -L./FreeImage/usr/lib -lfreeimage
+	$(compiler) $^ -o $@ -lOpenCL  -L./FreeImage/lib -lfreeimage
 	@printf "$(OK_COLOR) OpenCL executable file $(Target) has been created\n$(NO_COLOR)" 
 
 $(Target_cpu):$(object_cpu)
 	@mkdir -p ./bin
-	$(compiler) $^ -o $@  -L./FreeImage/usr/lib -lfreeimage
+	$(compiler) $^ -o $@  -L./FreeImage/lib -lfreeimage
 	@printf "$(OK_COLOR) CPU executable file $(Target_cpu) has been created\n$(NO_COLOR)" 
 
 $(ObjDir)/%.o:./src/%.cpp

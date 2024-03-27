@@ -7,7 +7,7 @@
 #include <opencl.hpp>
 #include <opencl_step.hpp>
 #include <cstring>
-#include <FreeImage/usr/include/FreeImage.h>
+#include <FreeImage/include/FreeImage.h>
 
 int main()
 {
