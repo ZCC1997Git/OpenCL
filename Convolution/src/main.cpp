@@ -2,6 +2,7 @@
 #include <GetPlatformInfo.hpp>
 #include <chrono>
 #include <cmath>
+#include <convolution.hpp>
 #include <cstring>
 #include <iostream>
 #include <omp.h>
@@ -17,74 +18,87 @@ int main() {
   auto context = CreateContext(platform, device, 1);
   auto CommandQueue = CreateCommandQueue(context, device[0]);
   auto KernelSource = ReadKernelSource("./opencl/convolution.cl");
+  auto KernelNames = ParseKernelFromSource(KernelSource);
+  InstanceTemplate(KernelNames[0], KernelSource, "int", "5");
   auto Program = CreateProgram(context, device[0], KernelSource);
   BuildProgram(Program, 1, device, "-cl-std=CL2.0");
 
-  /*chose the kernel used*/
-  std::string kernel_name[2];
-  kernel_name[0] = "kernel1_test";
-  kernel_name[1] = "kernel2_test";
-  auto Kernel1 = CreateKernel(Program, kernel_name[0]);
-  auto Kernel2 = CreateKernel(Program, kernel_name[1]);
+  auto Kernel1 = CreateKernel(Program, KernelNames[0]);
 
-  /*set the size of buf*/
-  constexpr size_t contentLength = sizeof(int) * 16 * 1024 * 1024;
-  cl_mem src1MemObj = clCreateBuffer(context, CL_MEM_READ_ONLY, contentLength,
-                                     nullptr, nullptr);
-  cl_mem src2MemObj = clCreateBuffer(context, CL_MEM_READ_ONLY, contentLength,
-                                     nullptr, nullptr);
-  int *pHostBuffer = new int[contentLength / sizeof(int)];
-  for (size_t i = 0; i < contentLength / sizeof(int); i++)
-    pHostBuffer[i] = i;
+  /*the convolution related*/
+  constexpr int width = 1024 * 4 + 4;
+  constexpr int heigt = 1024 * 4 + 4;
+  constexpr size_t filterSize = 5;
+  constexpr int imageOutSizeX = width - filterSize + 1;
+  constexpr int imageOutSizeY = heigt - filterSize + 1;
 
-  cl_event event1, event2;
-  clEnqueueWriteBuffer(CommandQueue, src1MemObj, CL_FALSE, 0, contentLength,
-                       pHostBuffer, 0, nullptr, &event1);
+  int Flilter[filterSize * filterSize] = {-1, 1,  1,  1,  -1, -1, 1,  1, 1,
+                                          -1, -1, 1,  -2, 1,  1,  -1, 1, 1,
+                                          1,  -1, -1, 1,  1,  1,  1};
 
-  clEnqueueWriteBuffer(CommandQueue, src2MemObj, CL_FALSE, 0, contentLength,
-                       pHostBuffer, 1, &event1, &event2);
+  int *LayerOut = new int[imageOutSizeX * imageOutSizeY];
+  int *LayerOut_ref = new int[imageOutSizeX * imageOutSizeY];
+  char *ImageOut = new char[imageOutSizeX * imageOutSizeY * 4];
+  int *TheLayer = new int[width * heigt];
 
-  cl_mem dstMemObj = clCreateBuffer(context, CL_MEM_WRITE_ONLY, contentLength,
-                                    nullptr, nullptr);
+  cl_mem FlilterBuffer =
+      clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                     sizeof(int) * filterSize * filterSize, Flilter, nullptr);
 
-  SetKernelArg(Kernel1, dstMemObj, src1MemObj, src2MemObj);
-  auto maxWorkGroupSize = GetDeviceMaxWorkGroupSize(device[0]);
+  cl_mem TheLayerBuffer = clCreateBuffer(
+      context, CL_MEM_READ_ONLY, sizeof(int) * width * heigt, nullptr, nullptr);
 
-  /*wait for the data of src1MemObj and src2MemObj*/
-  clWaitForEvents(1, &event2);
-  clReleaseEvent(event1);
-  clReleaseEvent(event2);
-  event1 = nullptr;
-  event2 = nullptr;
+  cl_mem LayerOutBuffer = clCreateBuffer(
+      context, CL_MEM_WRITE_ONLY, sizeof(int) * imageOutSizeX * imageOutSizeY,
+      nullptr, nullptr);
 
-  /*launch the kernel*/
-  size_t globalWorkSize = contentLength / sizeof(int);
-  clEnqueueNDRangeKernel(CommandQueue, Kernel1, 1, nullptr, &globalWorkSize,
-                         &maxWorkGroupSize, 0, nullptr, &event1);
+  SetKernelArg(Kernel1, imageOutSizeX, imageOutSizeX, TheLayerBuffer,
+               FlilterBuffer, LayerOutBuffer);
+  for (int layer = 0; layer < 3; layer++) {
+    for (int i = 0; i < width * heigt; i++) {
+      TheLayer[i] = layer + 1 + i % 255;
+    }
+    clEnqueueWriteBuffer(CommandQueue, TheLayerBuffer, CL_TRUE, 0,
+                         sizeof(int) * width * heigt, TheLayer, 0, nullptr,
+                         nullptr);
+    size_t globalWorkSize[2] = {imageOutSizeX, imageOutSizeY};
+    cl_event event;
+    clEnqueueNDRangeKernel(CommandQueue, Kernel1, 2, nullptr, globalWorkSize,
+                           nullptr, 0, nullptr, &event);
+    /*get the during time*/
 
-  /*prepare the sencond kernel*/
-  SetKernelArg(Kernel2, dstMemObj, src1MemObj, src2MemObj);
-  /*launch the second kernel*/
-  clEnqueueNDRangeKernel(CommandQueue, Kernel2, 1, nullptr, &globalWorkSize,
-                         &maxWorkGroupSize, 1, &event1, &event2);
+    clWaitForEvents(1, &event);
+    cl_ulong start, end;
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong),
+                            &start, nullptr);
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong),
+                            &end, nullptr);
+    auto elapsed1 = (end - start) / 1e6;
+    std::cout << "The elapsed time is " << elapsed1 << "ms" << std::endl;
 
-  /*check*/
-  int *pDeviceBuffer = new int[contentLength / sizeof(int)];
-  clEnqueueReadBuffer(CommandQueue, dstMemObj, CL_TRUE, 0, contentLength,
-                      pDeviceBuffer, 1, &event2, nullptr);
+    clEnqueueReadBuffer(CommandQueue, LayerOutBuffer, CL_TRUE, 0,
+                        sizeof(int) * imageOutSizeX * imageOutSizeY, LayerOut,
+                        0, nullptr, nullptr);
 
-  for (size_t i = 0; i < contentLength / sizeof(int); i++) {
-    int testData = pHostBuffer[i] + pHostBuffer[i];
-    testData = testData * pHostBuffer[i] - pHostBuffer[i];
-    if (testData != pDeviceBuffer[i]) {
-      std::cout << "Error: " << i << std::endl;
-      break;
+    /*check*/
+    Convolution<filterSize>(width, heigt, TheLayer, Flilter, LayerOut_ref);
+    for (int i = 0; i < imageOutSizeX * imageOutSizeY; i++) {
+      if (LayerOut[i] != LayerOut_ref[i]) {
+        std::cout << "Error" << std::endl;
+        return 1;
+      }
+    }
+    std::cout << "Layer " << layer << " is correct" << std::endl;
+    for (int i = 0; i < imageOutSizeX * imageOutSizeY; i++) {
+      ImageOut[i * 4 + layer] = LayerOut[i];
     }
   }
-  std::cout << "Test is passed" << std::endl;
 
-  ReleaseSource(context, CommandQueue, Program, Kernel1, Kernel2);
-  delete[] pHostBuffer;
-  delete[] pDeviceBuffer;
+  ReleaseSource(context, CommandQueue, Program, Kernel1);
+  delete[] TheLayer;
+  delete[] LayerOut;
+  delete[] LayerOut_ref;
+  delete[] ImageOut;
+
   return 0;
 }

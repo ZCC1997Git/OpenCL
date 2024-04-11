@@ -1,4 +1,5 @@
 #pragma once
+#include <InstanceTemplate.hpp>
 #include <opencl.hpp>
 #include <string>
 #include <tuple>
@@ -76,3 +77,5 @@ requires(std::is_same_v<KERNEL, cl_kernel> &&...) void ReleaseSource(
     clReleaseContext(context);
   }
 }
+
+std::vector<std::string> ParseKernelFromSource(std::string KernelSource);
