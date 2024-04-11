@@ -59,4 +59,5 @@ void InstanceTemplate(std::string Kernelname, std::string &KernelSource,
   template_begin = KernelSource.rfind("template", pos);
   KernelSource.replace(template_begin, template_end - template_begin + 1,
                        macro);
+
 }

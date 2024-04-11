@@ -20,10 +20,17 @@ int main() {
   auto KernelSource = ReadKernelSource("./opencl/convolution.cl");
   auto KernelNames = ParseKernelFromSource(KernelSource);
   InstanceTemplate(KernelNames[0], KernelSource, "int", "5");
+  InstanceTemplate(KernelNames[1], KernelSource, "int", "5");
+  InstanceTemplate(KernelNames[2], KernelSource, "int", "5","16");
+  InstanceTemplate(KernelNames[3], KernelSource, "int", "5","16","2","2");
+   std::cout << "The kernel name is "<< std::endl;
+  for(auto &name:KernelNames){
+    std::cout<<name<<std::endl;
+  }
   auto Program = CreateProgram(context, device[0], KernelSource);
   BuildProgram(Program, 1, device, "-cl-std=CL2.0");
 
-  auto Kernel1 = CreateKernel(Program, KernelNames[0]);
+  auto Kernel1 = CreateKernel(Program, KernelNames[3]);
 
   /*the convolution related*/
   constexpr int width = 1024 * 4 + 4;
@@ -61,10 +68,11 @@ int main() {
     clEnqueueWriteBuffer(CommandQueue, TheLayerBuffer, CL_TRUE, 0,
                          sizeof(int) * width * heigt, TheLayer, 0, nullptr,
                          nullptr);
-    size_t globalWorkSize[2] = {imageOutSizeX, imageOutSizeY};
+    size_t globalWorkSize[2] = {imageOutSizeX/2, imageOutSizeY/2};
+    size_t localWorkSize[2] = {16, 16};
     cl_event event;
     clEnqueueNDRangeKernel(CommandQueue, Kernel1, 2, nullptr, globalWorkSize,
-                           nullptr, 0, nullptr, &event);
+                           localWorkSize, 0, nullptr, &event);
     /*get the during time*/
 
     clWaitForEvents(1, &event);
@@ -74,14 +82,20 @@ int main() {
     clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong),
                             &end, nullptr);
     auto elapsed1 = (end - start) / 1e6;
-    std::cout << "The elapsed time is " << elapsed1 << "ms" << std::endl;
+    std::cout << "The opencl elapsed time is " << elapsed1 << "ms" << std::endl;
 
     clEnqueueReadBuffer(CommandQueue, LayerOutBuffer, CL_TRUE, 0,
                         sizeof(int) * imageOutSizeX * imageOutSizeY, LayerOut,
                         0, nullptr, nullptr);
 
     /*check*/
-    Convolution<filterSize>(width, heigt, TheLayer, Flilter, LayerOut_ref);
+    auto time_start = std::chrono::high_resolution_clock::now();
+    Convolution_unroll_simd_avx<filterSize,2,2>(width, heigt, TheLayer, Flilter, LayerOut_ref);
+    auto time_end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      time_end - time_start)
+                      .count();
+    std::cout << "The cpu elapsed time is " << elapsed << "ms" << std::endl;
     for (int i = 0; i < imageOutSizeX * imageOutSizeY; i++) {
       if (LayerOut[i] != LayerOut_ref[i]) {
         std::cout << "Error" << std::endl;

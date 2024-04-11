@@ -5,7 +5,7 @@ Target   	=./bin/Event
 source   	=$(foreach dir,$(SrcDir),$(wildcard $(dir)/*.cpp))
 object   	=$(patsubst %.cpp,$(ObjDir)/%.o,$(notdir $(source)))
 headfile 	=$(wildcard ./include/*.hpp)
-cflags   	+=-std=c++20  -O3
+cflags   	+=-std=c++20  -O3  -fno-tree-vectorize   -mavx512f -mavx2 -fopenmp
 NO_COLOR    =\033[0m
 OK_COLOR    =\033[32;01m
 
@@ -13,7 +13,7 @@ all:$(Target) $(Target_cpu)
 
 $(Target):$(object)
 	@mkdir -p ./bin
-	$(compiler) $^ -o $@ -lOpenCL 
+	$(compiler) $^ -o $@ -lOpenCL  -fopenmp
 	@printf "$(OK_COLOR) OpenCL executable file $(Target) has been created\n$(NO_COLOR)" 
 
 
