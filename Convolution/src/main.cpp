@@ -98,7 +98,8 @@ int main() {
     std::cout << "The cpu elapsed time is " << elapsed << "ms" << std::endl;
     for (int i = 0; i < imageOutSizeX * imageOutSizeY; i++) {
       if (LayerOut[i] != LayerOut_ref[i]) {
-        std::cout << "Error" << std::endl;
+        std::cout << "Error in layer " << layer << " at " << i << " "
+                  << LayerOut[i] << " " << LayerOut_ref[i] << std::endl;
         return 1;
       }
     }

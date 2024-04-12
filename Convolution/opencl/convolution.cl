@@ -87,36 +87,45 @@ __kernel void convolutionConstantSharedUnroll(
 
   __local T l_pixel[BS * BY + filterSize - 1][BS * BX + filterSize - 1];
 
+  __local T l_pixel_ref[BS + filterSize - 1][BS + filterSize - 1];
+
   int x = get_global_id(0);
   int y = get_global_id(1);
   int tidx = get_local_id(0);
   int tidy = get_local_id(1);
+  int block_x = get_group_id(0);
+  int block_y = get_group_id(1);
   int imageInSizeX = imageOutSizeX + filterSize - 1;
   /*center*/
   for (int i = 0; i < BX; i++) {
     for (int j = 0; j < BY; j++) {
-      l_pixel[tidy + j * BS][tidx + i * BS] =
-          imageIn[(y + j * BS) * imageInSizeX + x + i * BS];
+      l_pixel[tidy * BY + j][tidx * BX + i] =
+          imageIn[(block_y * BY * BS + tidy * BY + j) * imageInSizeX +
+                  block_x * BS * BY + tidx * BX + i];
     }
   }
+
   /*right*/
   if (tidx < filterSize - 1) {
     for (int j = 0; j < BY; j++) {
-      l_pixel[tidy + j * BS][tidx + BX * BS] =
-          imageIn[(y + j * BS) * imageInSizeX + x + BX * BS];
+      l_pixel[tidy * BY + j][BS * BX + tidx] =
+          imageIn[(block_y * BY * BS + tidy * BY + j) * imageInSizeX +
+                  (block_x + 1) * BS * BY + tidx];
     }
   }
 
   if (tidy < filterSize - 1) {
     for (int i = 0; i < BX; i++) {
-      l_pixel[tidy + BY * BS][tidx + i * BS] =
-          imageIn[(y + BY * BS) * imageInSizeX + x + i * BS];
+      l_pixel[BS * BY + tidy][tidx * BX + i] =
+          imageIn[((block_y + 1) * BY * BS + tidy) * imageInSizeX +
+                  block_x * BS * BY + tidx * BX + i];
     }
   }
 
   if (tidx < filterSize - 1 && tidy < filterSize - 1) {
-    l_pixel[tidy + BY * BS][tidx + BX * BS] =
-        imageIn[(y + BY * BS) * imageInSizeX + x + BX * BS];
+    l_pixel[BS * BY + tidy][BS * BX + tidx] =
+        imageIn[((block_y + 1) * BY * BS + tidy) * imageInSizeX +
+                (block_x + 1) * BS * BY + tidx];
   }
 
   barrier(CLK_LOCAL_MEM_FENCE);
@@ -137,8 +146,8 @@ __kernel void convolutionConstantSharedUnroll(
 
   for (int i = 0; i < BX; i++) {
     for (int j = 0; j < BY; j++) {
-      imageOut[(y + tidy * (BY - 1) + j) * imageOutSizeX + x + tidx * (BX - 1) +
-               i] = sum[j * BX + i];
+      imageOut[(block_y * BY * BS + tidy * BY + j) * imageOutSizeX +
+               block_x * BS * BY + tidx * BX + i] = sum[j * BX + i];
     }
   }
 }
