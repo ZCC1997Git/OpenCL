@@ -20,6 +20,8 @@ int main() {
     auto KernelSource = ReadKernelSource("./opencl/gemm.cl");
     auto KernelNames = ParseKernelFromSource(KernelSource);
     InstanceTemplate(KernelNames[0], KernelSource, "float");
+    InstanceTemplate(KernelNames[1], KernelSource, "16");
+    InstanceTemplate(KernelNames[2], KernelSource, "16");
 
     std::cout << "The kernel name is " << std::endl;
     for (auto& name : KernelNames) {
@@ -28,11 +30,11 @@ int main() {
     auto Program = CreateProgram(context, device[0], KernelSource);
     BuildProgram(Program, 1, device, "-cl-std=CL2.0");
 
-    auto Kernel1 = CreateKernel(Program, KernelNames[0]);
+    auto Kernel1 = CreateKernel(Program, KernelNames[2]);
 
-    constexpr int M = 1024;
-    constexpr int K = 1024;
-    constexpr int N = 1024;
+    constexpr int M = 1024*2;
+    constexpr int K = 1024*2;
+    constexpr int N = 1024*2;
 
     float* a = static_cast<float*>(aligned_alloc(32, M * K * sizeof(float)));
     float* b = static_cast<float*>(aligned_alloc(32, K * N * sizeof(float)));
@@ -57,11 +59,11 @@ int main() {
 
     SetKernelArg(Kernel1, Device_A, Device_B, Device_C, M, N, K);
 
-    size_t globalWorkSize[2] = {M, N};
-    // int localWorkSize[2] = {16, 16};
+    size_t globalWorkSize[2] = {M/4, N/4};
+    size_t localWorkSize[2] = {16, 16};
     cl_event event;
     clEnqueueNDRangeKernel(CommandQueue, Kernel1, 2, nullptr, globalWorkSize,
-                           nullptr, 0, nullptr, &event);
+                           localWorkSize, 0, nullptr, &event);
     /*get the during time*/
     clWaitForEvents(1, &event);
     cl_ulong start, end;
@@ -91,7 +93,7 @@ int main() {
         }
     }
     std::cout << "Success!" << std::endl;
-    // ReleaseSource(context, CommandQueue, Program, Kernel1);
+    ReleaseSource(context, CommandQueue, Program, Kernel1);
     delete[] a;
     delete[] b;
     delete[] c;
