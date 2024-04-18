@@ -22,6 +22,8 @@ int main() {
     InstanceTemplate(KernelNames[0], KernelSource, "float");
     InstanceTemplate(KernelNames[1], KernelSource, "16");
     InstanceTemplate(KernelNames[2], KernelSource, "16");
+    InstanceTemplate(KernelNames[3], KernelSource, "16");
+    InstanceTemplate(KernelNames[4], KernelSource, "16");
 
     std::cout << "The kernel name is " << std::endl;
     for (auto& name : KernelNames) {
@@ -30,7 +32,7 @@ int main() {
     auto Program = CreateProgram(context, device[0], KernelSource);
     BuildProgram(Program, 1, device, "-cl-std=CL2.0");
 
-    auto Kernel1 = CreateKernel(Program, KernelNames[2]);
+    auto Kernel1 = CreateKernel(Program, KernelNames[4]);
 
     constexpr int M = 1024*2;
     constexpr int K = 1024*2;
@@ -59,7 +61,7 @@ int main() {
 
     SetKernelArg(Kernel1, Device_A, Device_B, Device_C, M, N, K);
 
-    size_t globalWorkSize[2] = {M/4, N/4};
+    size_t globalWorkSize[2] = {N/4, M/4};
     size_t localWorkSize[2] = {16, 16};
     cl_event event;
     clEnqueueNDRangeKernel(CommandQueue, Kernel1, 2, nullptr, globalWorkSize,
