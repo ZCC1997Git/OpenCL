@@ -1,11 +1,11 @@
 compiler 	=g++
 SrcDir   	=./src 
 ObjDir   	=./obj
-Target   	=./bin/Event
+Target   	=./bin/gemm
 source   	=$(foreach dir,$(SrcDir),$(wildcard $(dir)/*.cpp))
 object   	=$(patsubst %.cpp,$(ObjDir)/%.o,$(notdir $(source)))
 headfile 	=$(wildcard ./include/*.hpp)
-cflags   	+=-std=c++17  -O3  -fno-tree-vectorize   -mavx512f -mavx2 -fopenmp
+cflags   	+=-std=c++17  -O3  -fno-tree-vectorize  -mavx2 -mfma
 NO_COLOR    =\033[0m
 OK_COLOR    =\033[32;01m
 
@@ -13,7 +13,7 @@ all:$(Target) $(Target_cpu)
 
 $(Target):$(object)
 	@mkdir -p ./bin
-	$(compiler) $^ -o $@ -lOpenCL  -fopenmp
+	$(compiler) $^ -o $@ -lOpenCL 
 	@printf "$(OK_COLOR) OpenCL executable file $(Target) has been created\n$(NO_COLOR)" 
 
 
