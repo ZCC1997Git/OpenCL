@@ -34,9 +34,9 @@ int main() {
 
     auto Kernel1 = CreateKernel(Program, KernelNames[4]);
 
-    constexpr int M = 1024*2;
-    constexpr int K = 1024*2;
-    constexpr int N = 1024*2;
+    constexpr int M = 512*4;
+    constexpr int K = 512*4;
+    constexpr int N = 512*4;
 
     float* a = static_cast<float*>(aligned_alloc(32, M * K * sizeof(float)));
     float* b = static_cast<float*>(aligned_alloc(32, K * N * sizeof(float)));

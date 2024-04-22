@@ -125,7 +125,7 @@ __kernel void matrixMultiplyVectorMultiItemKernel(__global float* A,
     float4* CC = (float4*)C;
 
 #define unroll_m 8
-#define unroll_n 4
+#define unroll_n 8
 #define unroll_m_float4 (unroll_m / 4)
 #define unroll_n_float4 (unroll_n / 4)
 
@@ -216,23 +216,42 @@ __kernel void matrixMultiplyVectorKernel_prefetch(__global float* A,
 
     int N_float4 = N / 4;
     int i, j;
+    float4 temp_A;
+    float4 temp_B;
+    temp_A.x = A[0 * BS * K + ab + K * ty + tx];
+    temp_A.y = A[1 * BS * K + ab + K * ty + tx];
+    temp_A.z = A[2 * BS * K + ab + K * ty + tx];
+    temp_A.w = A[3 * BS * K + ab + K * ty + tx];
+    temp_B = BB[bb + N_float4 * ty + tx];
 
-    for (i = ab, j = bb; i < ae; i += BS, j += BS * N_float4) {
-        float4 temp;
-        temp.x = A[0 * BS * K + i + K * ty + tx];
-        temp.y = A[1 * BS * K + i + K * ty + tx];
-        temp.z = A[2 * BS * K + i + K * ty + tx];
-        temp.w = A[3 * BS * K + i + K * ty + tx];
-        ta[ty][tx] = temp;
-        tb[ty][tx] = BB[j + N_float4 * ty + tx];
+    for (i = ab, j = bb; i < ae - BS; i += BS, j += BS * N_float4) {
         barrier(CLK_LOCAL_MEM_FENCE);
+        ta[ty][tx] = temp_A;
+        tb[ty][tx] = temp_B;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        temp_A.x = A[0 * BS * K + i + BS + K * ty + tx];
+        temp_A.y = A[1 * BS * K + i + BS + K * ty + tx];
+        temp_A.z = A[2 * BS * K + i + BS + K * ty + tx];
+        temp_A.w = A[3 * BS * K + i + BS + K * ty + tx];
+        temp_B = BB[j + BS * N_float4 + N_float4 * ty + tx];
+#pragma unroll
         for (int k = 0; k < BS; k++) {
             v[0] += ta[ty][k].x * tb[k][tx];
             v[1] += ta[ty][k].y * tb[k][tx];
             v[2] += ta[ty][k].z * tb[k][tx];
             v[3] += ta[ty][k].w * tb[k][tx];
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    ta[ty][tx] = temp_A;
+    tb[ty][tx] = temp_B;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int k = 0; k < BS; k++) {
+        v[0] += ta[ty][k].x * tb[k][tx];
+        v[1] += ta[ty][k].y * tb[k][tx];
+        v[2] += ta[ty][k].z * tb[k][tx];
+        v[3] += ta[ty][k].w * tb[k][tx];
     }
 
     for (int ii = 0; ii < 4; ii++) {
